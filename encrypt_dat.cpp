@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+//#include <gmpxx.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -38,21 +39,21 @@ long long pow(long long base, long long exp, long long mod){
 int main(){
     string line;
     string delimiter = ",";
-    int encrypting = 1;
+    int encrypting = 1; // 1= encrypting, 0 = decrypting
 
-    ifstream dataFile (encrypting ? "Homework_02_Fall24.DAT" : "encrypted.dat");
+    ifstream dataFile (encrypting ? "Homework_02_Fall24.DAT" : "ENCRYPTED.dat");
     ofstream outFile (encrypting ? "ENCRYPTED.dat" : "decrypted.dat");
 
-    long long e = encrypting ? 77239747 : 1606632367; // TODO: read in an RSA key pair from a generated file
-                    // * Will need to convert from base64
-                    // * Decide on a key format (start with openSSH, expand to different formats as necessary)
+    long long e = encrypting ? 77239747 : 1606632367; // Use aidan public key if encrypting, otherwise mine
     long long n = encrypting ? 100980637 : 2997331637;
-    long long d = 314254663;
 
-    
+    // e = 1606632367; //My public key to overwrite previous value for testing
+    // n = 2997331637;
+
+    long long d = 314254663; // My private key
 
     double total_time = 0;
-    
+    int iter_count = 0;
     if (dataFile.is_open()){
         while (getline(dataFile, line)){
             auto start = high_resolution_clock::now(); // Start timer
@@ -60,31 +61,38 @@ int main(){
                 
                 vector<string> items = split(line, delimiter);
                 
-                // Placeholder for encryption
-                // This code simply doubles the voltage, current, and frequency data
-                // TODO: replace this with an RSA calculation 
                 for (int i = 0 ; i < items.size(); ++i){
-                    if (encrypting)
-                        outFile<< ((i > 1) ? to_string(pow(stoi(items[i]), e, n)) : items[i] ) <<',';
-                    else 
-                        outFile<< ((i > 1) ? to_string(pow(stoi(items[i]), d, n)) : items[i] ) <<',';
+                    long long val = 0;
+                    uint64_t val_u = 0;
+                    try{
+                       val = stoll(items[i]);
+                    } catch(exception e){
+                        std::cout << "invalid value of stoll " << items[i] << '\n';
+                    }
+                    if (encrypting){
+                        outFile<< ((i > 1) ? to_string(pow(val, e, n)) : items[i] ); // Do not encrypt the first two fields
+                    }else{ 
+                        outFile<< ((i > 1) ? to_string(pow(val, d, n)) : items[i] ); // Do not decrypt the first two fields
+                    }
+                    if (i != 4)
+                        outFile<<','; //don't put a comma at the last
                 }
                 outFile<<'\n';
             } else
                 break;
             auto stop = high_resolution_clock::now(); // Stop timer
             auto duration = duration_cast<microseconds>(stop - start); // Calculate elapsed time
-            total_time = duration.count(); // save to print at the end
+            total_time += duration.count(); // save to print at the end
+            iter_count++;
         }
         if (outFile.is_open())
             outFile.close();
         dataFile.close();
     } else
-        cout << "Unable to open file";
-
+        std::cout << "Unable to open file";
     
     
-    cout << total_time/1000000; // print the measured time in seconds
+    std::cout << total_time/iter_count/1000000; // print the average time to process each line in seconds
 
     return 0;
 }
